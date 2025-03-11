@@ -1,0 +1,2251 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <title>Admin Dashboard</title>
+    <meta charset="utf-8">
+    <link rel="icon" href="/static/images/logo_trans.png" type="image/x-icon">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@4.6.2/dist/css/bootstrap.min.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/sweetalert2@11/dist/sweetalert2.min.css">
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+    <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/5.3.0/css/bootstrap.min.css">
+    
+    <link rel="stylesheet" type="text/css" href="/static/css/admin_dash.css">
+</head>
+<body>
+    <!-- Sidebar -->
+    <div class="sidebar">
+        <div class="logo-container">
+            <img src="/static/images/logo_trans.png" alt="Logo">
+        </div>
+        <h2>Admin</h2>
+        
+        
+        <!-- Add Font Awesome CDN for icons -->
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
+
+<a href="#" onclick="loadContent('dashboard',event)" class="active">
+    <i class="fas fa-tachometer-alt"></i> Dashboard
+</a>
+<a href="#manage" onclick="loadContent('manage',event)">
+    <i class="fas fa-cogs"></i> Manage
+</a>
+<a href="#" onclick="loadContent('batches', event)">
+    <i class="fas fa-layer-group"></i> Batches
+</a>
+
+<a href="#" onclick="loadContent('reports',event)">
+    <i class="fas fa-chart-line"></i> Reports
+</a>
+
+
+<a href="#" onclick="loadContent('founders',event)">
+    <i class="fas fa-lightbulb"></i> Founders Speak
+</a>
+<a href="#" onclick="loadContent('settings',event)">
+    <i class="fas fa-cogs"></i> Settings
+</a>
+
+      
+        <a href="{{ url_for('logout') }}" class="btn btn-danger logout-btn">🚪 Logout</a>
+    </div>
+
+    <!-- Sidebar toggle button -->
+    <button class="sidebar-toggler" onclick="toggleSidebar()">☰</button>
+
+    <!-- Main Content -->
+    <div class="main-content">
+        
+
+        <div class="content-page" id="dashboard">
+            <h1>Dashboard</h1>
+            <div class="row">
+                <div class="col-md-3">
+                    <div class="stat-card">
+                        <h4>Total Users:</h4>
+                        <p>{{total_users}}</p>
+                    </div>
+                </div>
+                <div class="col-md-3">
+                    <div class="stat-card">
+                        <h4>Worksheets Used:</h4>
+                        <p>{{total_worksheets}}</p>
+                    </div>
+                </div>
+                <div class="col-md-3">
+                    <div class="stat-card">
+                        <h4>Flashcards Used:</h4>
+                        <p>{{total_flashcards}}</p>
+                    </div>
+                </div>
+            </div>
+        
+            <h2 class="table-heading">Users Activity</h2>
+<button id="bulkEmailButton" class="btn btn-primary">📡 Notify Users</button>
+<table class="user-table">
+    <thead>
+        <tr>
+            <th><input type="checkbox" id="select-all"> Select</th>
+            <th>Profile</th>
+            <th>Name</th>
+            <th>Email</th>
+            <th>Worksheets Used</th>
+            <th>Flashcards Used</th>
+            <th>Activity Logs</th>
+            <th>Subscription</th>
+        </tr>
+    </thead>
+    <tbody id="user-activity-body"></tbody>
+        {% for user in users %}
+        <tr>
+            <td><input type="checkbox" class="email-checkbox" value="{{ user.email }}"></td>
+            <td><img src="{{ user.profile_picture }}" width="40" height="40"></td>
+            <td>{{ user.name }}</td>
+            <td class="user-email">{{ user.email }}</td>
+            <td>{{ user.worksheets_used }}</td>
+            <td>{{ user.flashcards_used }}</td>
+            <td>
+                <button class="btn btn-info view-logs-btn" data-user-id="{{ user.email }}">
+                    View Logs
+                </button>
+            </td>
+            <td>{{ user.subscription }}</td>
+        </tr>
+        {% endfor %}
+    </tbody>
+</table>
+<!-- Pagination Controls for Users Activity Table -->
+<div id="activity-pagination-controls" class="d-flex justify-content-center mt-3"></div>
+
+<!-- Log Data Modal -->
+<div class="modal fade" id="logsModal" tabindex="-1" aria-labelledby="logsModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="logsModalLabel">User Logs</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <ul id="logsList" class="list-group">
+                    <!-- Logs will be injected here -->
+                </ul>
+                <!-- Pagination Controls -->
+                <nav>
+                    <ul class="pagination justify-content-center mt-3" id="paginationControls">
+                        <!-- Pagination buttons will be generated dynamically -->
+                    </ul>
+                </nav>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- JavaScript for Fetching Logs and Handling Modal -->
+<script>
+document.addEventListener("DOMContentLoaded", function () {
+    document.querySelectorAll(".view-logs-btn").forEach(button => {
+        button.addEventListener("click", function () {
+            let userEmail = this.getAttribute("data-user-id");  // Get user email
+
+            fetch(`/get_user_activity/${userEmail}`)  // ✅ New API Call
+                .then(response => response.json())
+                .then(data => {
+                    let logsList = document.getElementById("logsList");
+                    let paginationControls = document.getElementById("paginationControls");
+
+                    logsList.innerHTML = "";
+                    paginationControls.innerHTML = "";
+
+                    const logs = data.logs || [];
+                    const entriesPerPage = 7;
+                    let currentPage = 1;
+
+                    function renderLogs(page) {
+                        logsList.innerHTML = "";
+                        let start = (page - 1) * entriesPerPage;
+                        let end = start + entriesPerPage;
+                        let paginatedLogs = logs.slice(start, end);
+
+                        if (paginatedLogs.length > 0) {
+                            paginatedLogs.forEach(log => {
+                                let listItem = document.createElement("li");
+                                listItem.className = "list-group-item d-flex justify-content-between align-items-center";
+                                listItem.innerHTML = `<strong>${log.action} (${log.resource_type})</strong> <span class="text-muted">${log.date}</span>`;
+                                logsList.appendChild(listItem);
+                            });
+                        } else {
+                            logsList.innerHTML = "<li class='list-group-item text-muted text-center'>No logs available</li>";
+                        }
+                    }
+
+                    function renderPagination() {
+                        paginationControls.innerHTML = "";
+                        let totalPages = Math.ceil(logs.length / entriesPerPage);
+
+                        if (totalPages > 1) {
+                            for (let i = 1; i <= totalPages; i++) {
+                                let pageItem = document.createElement("li");
+                                pageItem.className = `page-item ${i === currentPage ? "active" : ""}`;
+                                let pageLink = document.createElement("a");
+                                pageLink.className = "page-link";
+                                pageLink.href = "#";
+                                pageLink.textContent = i;
+                                pageLink.addEventListener("click", function (e) {
+                                    e.preventDefault();
+                                    currentPage = i;
+                                    renderLogs(currentPage);
+                                    renderPagination();
+                                });
+                                pageItem.appendChild(pageLink);
+                                paginationControls.appendChild(pageItem);
+                            }
+                        }
+                    }
+
+                    // Initialize modal with logs and pagination
+                    renderLogs(currentPage);
+                    renderPagination();
+
+                    // Show modal
+                    new bootstrap.Modal(document.getElementById("logsModal")).show();
+                })
+                .catch(error => console.error("Error fetching logs:", error));
+        });
+    });
+});
+</script>
+
+
+
+<!--Bulk email Modal -->
+<div class="modal fade" id="bulkEmailModal" tabindex="-1" aria-labelledby="bulkEmailModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content border-0 shadow-lg rounded-4 custom-modal">
+            <div class="modal-header py-2 border-0 d-flex justify-content-center position-relative bg-light rounded-top">
+                
+                <h5 class="modal-title fw-bold text-primary mb-0"> 📧 Compose Email</h5>
+                <button type="button" class="btn-close position-absolute end-0 me-3" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            
+            <div class="modal-body bg-light">
+                <p class="mb-3 text-secondary">
+                    <strong class="text-dark">Recipients:</strong> 
+                    <span id="selectedEmails" class="text-dark fw-normal"></span>
+
+                </p>
+                <textarea id="emailMessage" class="form-control mb-3 shadow-sm border-0" rows="5" placeholder="✨ Type your message here..."></textarea>
+            </div>
+            <div class="modal-footer bg-light d-flex justify-content-between">
+                <button type="button" class="btn btn-outline-secondary rounded-pill px-4" data-bs-dismiss="modal">Close</button>
+               
+
+                <button id="sendBulkEmail" class="btn btn-primary rounded-pill px-4 shadow-sm">🚀 Send</button>
+            </div>
+        </div>
+    </div>
+</div>
+        </div>
+        
+        <script>
+
+
+document.addEventListener("DOMContentLoaded", function () {
+    document.querySelectorAll(".view-logs-btn").forEach(button => {
+        button.addEventListener("click", function () {
+            let logsData = JSON.parse(this.getAttribute("data-logs"));
+            let logsList = document.getElementById("logsList");
+            let paginationControls = document.getElementById("paginationControls");
+
+            const entriesPerPage = 7;
+            let currentPage = 1;
+            
+            function renderLogs(page) {
+                logsList.innerHTML = "";
+                let start = (page - 1) * entriesPerPage;
+                let end = start + entriesPerPage;
+                let paginatedLogs = logsData.slice(start, end);
+
+                if (paginatedLogs.length > 0) {
+                    paginatedLogs.forEach(log => {
+                        let listItem = document.createElement("li");
+                        listItem.className = "list-group-item d-flex justify-content-between align-items-center";
+                        listItem.innerHTML = `<strong>${log.service_name}</strong> <span class="text-muted">${log.timestamp}</span>`;
+                        logsList.appendChild(listItem);
+                    });
+                } else {
+                    logsList.innerHTML = "<li class='list-group-item text-muted text-center'>No logs available</li>";
+                }
+            }
+
+            function renderPagination() {
+                paginationControls.innerHTML = "";
+                let totalPages = Math.ceil(logsData.length / entriesPerPage);
+
+                if (totalPages > 1) {
+                    for (let i = 1; i <= totalPages; i++) {
+                        let pageItem = document.createElement("li");
+                        pageItem.className = `page-item ${i === currentPage ? "active" : ""}`;
+                        let pageLink = document.createElement("a");
+                        pageLink.className = "page-link";
+                        pageLink.href = "#";
+                        pageLink.textContent = i;
+                        pageLink.addEventListener("click", function (e) {
+                            e.preventDefault();
+                            currentPage = i;
+                            renderLogs(currentPage);
+                            renderPagination();
+                        });
+                        pageItem.appendChild(pageLink);
+                        paginationControls.appendChild(pageItem);
+                    }
+                }
+            }
+
+            // Initialize modal with logs and pagination
+            renderLogs(currentPage);
+            renderPagination();
+
+            // Show modal
+            let logsModal = new bootstrap.Modal(document.getElementById("logsModal"));
+            logsModal.show();
+        });
+    });
+});
+
+
+
+
+           // Send Email Function
+function sendEmail(button) {
+    // Get the email from the same row as the clicked button
+    var row = button.closest("tr");
+    var userEmail = row.querySelector(".user-email").textContent.trim();
+
+    // SweetAlert2 popup for email confirmation
+    Swal.fire({
+        title: 'Email Sent Successfully!',
+        text: 'Email has been sent to ' + userEmail + ' to convince them to buy the paid subscription!',
+        icon: 'success',
+        confirmButtonText: 'OK',
+        confirmButtonColor: '#3085d6',
+        background: '#f8f9fa',
+        customClass: {
+            popup: 'swal-custom-popup'
+        }
+    });
+}
+
+document.addEventListener("DOMContentLoaded", function () {
+    let modal = new bootstrap.Modal(document.getElementById("bulkEmailModal"));
+    let bulkEmailButton = document.getElementById("bulkEmailButton");
+    let sendBulkEmail = document.getElementById("sendBulkEmail");
+    let emailMessage = document.getElementById("emailMessage");
+    let selectedEmailsText = document.getElementById("selectedEmails");
+
+    // Open Bulk Email Modal
+    bulkEmailButton.addEventListener("click", function () {
+        let selectedEmails = Array.from(document.querySelectorAll(".email-checkbox:checked"))
+            .map(checkbox => checkbox.value);
+
+        if (selectedEmails.length === 0) {
+            Swal.fire({
+                icon: 'warning',
+                title: 'No Emails Selected',
+                text: 'Please select at least one email.',
+                confirmButtonColor: '#3085d6'
+            });
+            return;
+        }
+
+        selectedEmailsText.textContent = selectedEmails.join(", ");
+        modal.show();  // Show Bootstrap modal
+    });
+
+    // Send Bulk Email
+    sendBulkEmail.addEventListener("click", function () {
+        let message = emailMessage.value.trim();
+        let recipients = selectedEmailsText.textContent.split(", ");
+
+        if (message === "") {
+            Swal.fire({
+                icon: 'warning',
+                title: 'Message Required',
+                text: 'Please enter a message before sending.',
+                confirmButtonColor: '#3085d6'
+            });
+            return;
+        }
+
+        fetch("/send_bulk_email", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ emails: recipients, message: message })
+        })
+        .then(response => response.json())
+        .then(data => {
+            Swal.fire({
+                icon: 'success',
+                title: 'Email Sent!',
+                text: data.message,
+                confirmButtonColor: '#3085d6'
+            });
+            modal.hide();  // Close modal on success
+        })
+        .catch(error => console.error("Error sending email:", error));
+    });
+});
+
+            
+        
+        </script>
+
+        
+      
+        <div class="content-page" id="manage" style="display:none;">
+            <h2>Manage Users</h2>
+        
+            <!-- User Search and Filters -->
+            <div class="manage-search">
+                <input type="text" id="search-users" placeholder="Search Users..." class="search-input" onkeyup="filterUsers()">
+                <select id="filter-role" onchange="fetchUsers()">
+                
+                    <option value="all">All Roles</option>
+                    <option value="Admin">Admin</option>
+                    <option value="User">User</option>
+                </select>
+            </div>
+        
+            <!-- User List Table -->
+            <table class="user-list-table">
+                <thead>
+                    <tr>
+                        <th>ID</th>
+                        <th>Username</th>
+                        <th>Email</th>
+                        <th>Role</th>
+                        <th>Status</th>                      
+                        <th>Admin</th>
+                    </tr>
+                </thead>
+                <tbody id="user-list-body">
+                    <!-- User data will go here dynamically -->
+                </tbody>
+            </table> 
+            <div id="pagination-controls1" class="d-flex justify-content-center mt-3"></div>           
+         
+
+       </div>
+        
+        
+        
+<script>
+    const itemsPerPage = 7; // Display 7 entries per page
+
+    async function fetchActivityLogs(page = 1) {
+        const pdfLogBody = document.getElementById("pdf-log-body");
+        const paginationContainer = document.getElementById("pagination-controls");
+
+        console.log(`Fetching logs for page ${page}`);
+
+        pdfLogBody.innerHTML = `<tr><td colspan="6" class="text-center text-muted">Loading...</td></tr>`;
+        paginationContainer.innerHTML = ""; // Clear previous pagination
+
+        try {
+            const response = await fetch(`/get_all_activity_logs?page=${page}&per_page=${itemsPerPage}`);
+            if (!response.ok) {
+                throw new Error(`HTTP error! Status: ${response.status}`);
+            }
+
+            let data = await response.json();
+            console.log("Fetched data:", data);
+
+            pdfLogBody.innerHTML = ""; // Clear the table before inserting new data
+
+            if (!data.activities || data.activities.length === 0) {
+                pdfLogBody.innerHTML = `<tr><td colspan="6" class="text-center text-muted">No activity found.</td></tr>`;
+                return;
+            }
+
+            data.activities.forEach(log => {
+                const logRow = document.createElement("tr");
+                logRow.innerHTML = `
+                    <td>${log.user}</td>
+                    <td>${log.action}</td>
+                    <td>${log.resource_type} - ${log.resource_name}</td>
+                    <td>${log.date}</td>
+                    <td>${log.source}</td>
+                    <td style="white-space: nowrap; text-align: center; padding: 8px;">
+                        <div style="display: inline-flex; align-items: center; justify-content: center; gap: 8px;">
+                            <button class="btn btn-primary btn-sm" onclick="viewPdf('${log.pdf}')">
+                                <i class="fas fa-eye"></i> View
+                            </button>
+                            <a href="${log.pdf}" download="${log.resource_name.replace(/\s+/g, '_')}.pdf" class="btn btn-secondary btn-sm">
+                                <i class="fas fa-download"></i> Download
+                            </a>
+                        </div>
+                    </td>
+                `;
+                pdfLogBody.appendChild(logRow);
+            });
+
+            renderPaginationControls(data.total_pages, data.current_page);
+        } catch (error) {
+            console.error("Error fetching logs:", error);
+            pdfLogBody.innerHTML = `<tr><td colspan="6" class="text-center text-danger">Failed to load activity.</td></tr>`;
+        }
+    }
+
+    function renderPaginationControls(totalPages, currentPage) {
+        const paginationContainer = document.getElementById("pagination-controls");
+        paginationContainer.innerHTML = "";
+
+        if (totalPages <= 1) return; // Hide pagination if only 1 page exists
+
+        let paginationHTML = `<div class="pagination-container">`;
+
+        if (currentPage > 1) {
+            paginationHTML += `<button class="btn btn-outline-secondary mx-1" onclick="fetchActivityLogs(${currentPage - 1})">
+                <i class="fas fa-chevron-left"></i> Prev
+            </button>`;
+        }
+
+        let startPage = Math.max(1, currentPage - 1);
+        let endPage = Math.min(totalPages, currentPage + 1);
+
+        for (let i = startPage; i <= endPage; i++) {
+            paginationHTML += `<button class="btn ${i === currentPage ? "btn-primary" : "btn-outline-primary"} mx-1" 
+            onclick="fetchActivityLogs(${i})">${i}</button>`;
+        }
+
+        if (currentPage < totalPages) {
+            paginationHTML += `<button class="btn btn-outline-secondary mx-1" onclick="fetchActivityLogs(${currentPage + 1})">
+                Next <i class="fas fa-chevron-right"></i>
+            </button>`;
+        }
+
+        paginationHTML += `</div>`;
+        paginationContainer.innerHTML = paginationHTML;
+    }
+
+    function viewPdf(pdfUrl) {
+        document.getElementById("pdfIframe").src = pdfUrl;
+        const pdfModal = new bootstrap.Modal(document.getElementById("pdfModal"));
+        pdfModal.show();
+    }
+
+    document.addEventListener("DOMContentLoaded", () => {
+        fetchActivityLogs(1);  // Fetch all activities without filter
+    });
+</script>
+
+
+
+
+<!-- Bootstrap CSS -->
+<link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0-alpha1/dist/css/bootstrap.min.css" rel="stylesheet">
+
+<!-- Bootstrap JS and Popper (needed for modal functionality) -->
+<script src="https://cdn.jsdelivr.net/npm/@popperjs/core@2.11.6/dist/umd/popper.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0-alpha1/dist/js/bootstrap.min.js"></script>
+
+<div id="founders" class="content-page">
+    <div class="founder-wrapper">
+        <!-- ✅ Timeline Section (Left Side) -->
+        <div class="wise-words-card">
+            <h3 class="founder-heading">Wise Words from the Founder</h3>
+            <div id="founderMessages" class="timeline"></div>
+        </div>
+
+        <!-- ✅ Post Message Section (Right Side) -->
+        <div class="post-message-card">
+            <h3 class="founder-heading">Share Your Thoughts</h3>
+            <div id="postMessageContainer" class="hidden">
+                <!-- ✅ Quill.js Container for Rich Text -->
+                <div id="founderMessageInput" style="height: 150px;"></div>
+                <button onclick="postFounderMessage()">Post</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- ✅ Include Quill.js -->
+<link href="https://cdn.jsdelivr.net/npm/quill@1.3.6/dist/quill.snow.css" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/quill@1.3.6/dist/quill.min.js"></script>
+
+<div id="founders" class="content-page">
+    <div class="founder-wrapper">
+        <!-- ✅ Timeline Section (Left Side) -->
+        <div class="wise-words-card">
+            <h3 class="founder-heading">Wise Words from the Founder</h3>
+            <div id="founderMessages" class="timeline" style="max-height: 300px; overflow-y: auto;"></div> <!-- Scrollable Container -->
+            <div id="loadingSpinner" class="text-center" style="display: none; padding: 10px;">
+                <div class="spinner-border text-primary" role="status">
+                    <span class="visually-hidden">Loading...</span>
+                </div>
+            </div>
+            
+            
+  
+        </div>
+  
+        <!-- ✅ Post Message Section (Right Side) -->
+        <div class="post-message-card">
+            <h3 class="founder-heading">Share Your Thoughts</h3>
+            <div id="postMessageContainer" class="hidden">
+                <div id="founderMessageInput" style="height: 150px;"></div>
+                <button onclick="postFounderMessage()">Post</button>
+            </div>
+        </div>
+    </div>
+  </div>
+  
+  <!-- ✅ Include Quill.js with async and defer for non-blocking load -->
+  <link href="https://cdn.jsdelivr.net/npm/quill@1.3.6/dist/quill.snow.css" rel="stylesheet">
+  <script src="https://cdn.jsdelivr.net/npm/quill@1.3.6/dist/quill.min.js" async defer></script>
+  
+  <script>
+    let quill;
+    let isFetching = false;
+    
+    let allMessagesLoaded = false; // ✅ Prevent repeated loading
+
+    document.addEventListener("DOMContentLoaded", async function () {
+        checkFounderAccess();
+        showSkeletons();
+        fetchFounderMessages();
+
+        const toolbarOptions = [
+            [{ 'header': [1, 2, false] }],
+            ['bold', 'italic', 'underline', 'strike'],
+            [{ 'list': 'ordered' }, { 'list': 'bullet' }],
+            ['link', 'image'],
+            ['clean']
+        ];
+
+        if (!quill) {
+            quill = new Quill('#founderMessageInput', {
+                theme: 'snow',
+                placeholder: 'Share your thoughts here...',
+                modules: { toolbar: toolbarOptions }
+            });
+
+            const toolbar = document.querySelector('.ql-toolbar');
+            toolbar.style.backgroundColor = '#f1f1f1';
+            toolbar.style.borderRadius = '8px';
+            toolbar.style.border = '1px solid #ccc';
+            toolbar.style.padding = '5px';
+
+            const buttons = toolbar.querySelectorAll('.ql-formats button');
+            buttons.forEach(button => {
+                button.style.padding = '8px';
+                button.style.borderRadius = '6px';
+                button.style.transition = 'background 0.2s';
+                button.style.margin = '2px';
+                button.addEventListener('mouseover', () => button.style.background = '#e0e0e0');
+                button.addEventListener('mouseout', () => button.style.background = 'transparent');
+            });
+
+            const dropdowns = toolbar.querySelectorAll('select');
+            dropdowns.forEach(dropdown => {
+                dropdown.style.padding = '5px';
+                dropdown.style.borderRadius = '6px';
+                dropdown.style.border = '1px solid #ccc';
+                dropdown.style.margin = '2px';
+            });
+        }
+
+        document.getElementById("founderMessages").addEventListener("scroll", () => {
+    const messageContainer = document.getElementById("founderMessages");
+    if (
+        messageContainer.scrollTop + messageContainer.clientHeight >= 
+        messageContainer.scrollHeight - 20
+    ) {
+        fetchFounderMessages();
+    }
+});
+
+    });
+
+    // ✅ Post Message Logic
+    async function postFounderMessage() {
+        const message = quill.root.innerHTML.trim();
+        if (!message) {
+            Swal.fire("Error", "Message cannot be empty!", "error");
+            return;
+        }
+
+        try {
+            const response = await fetch("/post_founder_message", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ message })
+            });
+
+            const data = await response.json();
+
+            if (data.error) {
+                Swal.fire("Error", data.error, "error");
+            } else {
+                Swal.fire("Success", data.message, "success");
+
+                quill.root.innerHTML = "";
+
+                // ✅ Reset Pagination After Posting New Message
+                currentPage = 1;
+                allMessagesLoaded = false;
+                document.getElementById("founderMessages").innerHTML = "";
+                fetchFounderMessages();
+            }
+        } catch (error) {
+            console.error("❌ Error posting message:", error);
+            Swal.fire("Error", "Failed to post message. Please try again.", "error");
+        }
+    }
+
+    // ✅ Founder Access Logic
+    async function checkFounderAccess() {
+        const response = await fetch('/get_user_profile');
+        const user = await response.json();
+
+        if (user.is_admin) {
+            document.getElementById("postMessageContainer").classList.remove("hidden");
+        }
+    }
+
+    // ✅ Skeleton Loader
+    function showSkeletons() {
+        const messageContainer = document.getElementById("founderMessages");
+        messageContainer.innerHTML = `
+            <div class="skeleton" style="height: 80px; margin-bottom: 10px;"></div>
+            <div class="skeleton" style="height: 80px; margin-bottom: 10px;"></div>
+        `;
+    }
+
+    async function fetchFounderMessages() {
+    if (isFetching) return;
+    isFetching = true;
+
+    const spinner = document.getElementById("loadingSpinner");
+    spinner.style.display = "block"; // Show spinner
+
+    try {
+        const response = await fetch(`/get_founder_messages?page=${currentPage}`);
+        const messages = await response.json();
+
+        if (currentPage === 1) {
+            document.getElementById("founderMessages").innerHTML = "";  
+        }
+
+        if (messages.length > 0) {
+            const messageHTML = messages.map(msg => `
+                <div class="timeline-item">
+                    <p>${msg.message}</p>
+                    <span class="timestamp">${msg.timestamp}</span>
+                </div>
+            `).join('');
+
+            document.getElementById("founderMessages").innerHTML += messageHTML;
+            currentPage++;
+        } else if (currentPage === 1) {
+            document.getElementById("founderMessages").innerHTML = "<p>No messages available.</p>";
+        }
+    } catch (error) {
+        console.error("❌ Error fetching messages:", error);
+    } finally {
+        // ✅ Hide Spinner After Load
+        spinner.style.display = "none";
+        isFetching = false;
+    }
+}
+
+</script>
+
+
+
+
+
+
+
+        <div class="content-page" id="reports" style="display:none;">
+            <h2>Reports </h2>
+            <!-- Add content here -->
+
+
+            
+            <div class="btn-group mb-3">
+                <button class="btn btn-primary" onclick="showActivityReport()">Activity</button>
+                <button class="btn btn-secondary" onclick="showEngagementReport()">Engagement</button>
+            </div>
+            
+            <div id="activity-report">
+                <div class="row">
+                    <div class="col-md-3">
+                        <div class="stat-card">
+                            <h4>Total Users:</h4>
+                            <p>{{total_users}}</p>
+                        </div>
+                    </div>
+                    <div class="col-md-3">
+                        <div class="stat-card">
+                            <h4>Worksheets Used:</h4>
+                            <p>{{total_worksheets}}</p>
+                        </div>
+                    </div>
+                    <div class="col-md-3">
+                        <div class="stat-card">
+                            <h4>Flashcards Used:</h4>
+                            <p>{{total_flashcards}}</p>
+                        </div>
+                    </div>
+                </div>
+            
+                <div class="card shadow-lg p-3 mb-4">
+                    <div class="card-header bg-primary text-white">
+                        <h5 class="mb-0">Worksheets & Flashcards Downloaded Over Time</h5>
+                    </div>
+                    <div class="card-body">
+                        <canvas id="activityChart"></canvas>
+                    </div>
+                </div>
+            
+                <!-- Recent Activity Section inside a card -->
+                <div class="card shadow-lg p-3 mb-4">
+                    <div class="card-header bg-dark text-white d-flex justify-content-between align-items-center">
+                        <h5 class="mb-0">Recent Activity</h5>
+                        <div class="d-flex align-items-center gap-2">
+                            <!-- Filter Dropdown -->
+                            <div class="dropdown">
+                                <button class="btn btn-secondary dropdown-toggle" type="button" id="filterDropdown" data-bs-toggle="dropdown" aria-expanded="false">
+                                    Filter
+                                </button>
+                                <ul class="dropdown-menu" aria-labelledby="filterDropdown">
+                                    <li><a class="dropdown-item" href="#" onclick="filterActivity('latest')">Latest Generated</a></li>
+                                    <li><a class="dropdown-item" href="#" onclick="filterActivity('oldest')">Oldest Generated</a></li>
+                                    <li><a class="dropdown-item" href="#" onclick="filterActivity('worksheets')">Worksheets</a></li>
+                                    <li><a class="dropdown-item" href="#" onclick="filterActivity('flashcards')">Flashcards</a></li>
+                                </ul>
+                            </div>
+                            <!-- Search Bar -->
+                            <div class="input-group" style="max-width: 300px;">
+                                <input type="text" id="search-input" class="form-control" placeholder="Search activity...">
+                                <button class="btn btn-primary" onclick="searchActivity()">Search</button>
+                            </div>
+                        </div>
+                    </div>
+                    
+                        <table id="recentActivityTable" class="table table-striped">
+                            <thead >
+                                <tr>
+                                    <th>User</th>
+                                    <th>Action</th>
+                                    <th>Resource</th>
+                                    <th>Date</th>
+                                    <th>Source</th>
+                                    <th>PDF</th>
+                                </tr>
+                            </thead>
+                            <tbody id="pdf-log-body"></tbody>
+                        </table>
+                        <div id="pagination-controls" class="d-flex justify-content-center mt-3"></div>
+                    
+                </div>
+            </div>
+            
+            
+
+            
+            <div id="engagement-report" style="display:none;">
+
+                <div class="row">
+                    <div class="col-md-3">
+                        <div class="stat-card">
+                            <h4>Forum Posts:</h4>
+                            <p id="forum-posts-count">Loading...</p>
+                        </div>
+                    </div>
+                    <div class="col-md-3">
+                        <div class="stat-card">
+                            <h4>Questions Asked:</h4>
+                            <p id="questions-asked-count">Loading...</p>
+                        </div>
+                    </div>
+                    <div class="col-md-3">
+                        <div class="stat-card">
+                            <h4>Answers Given:</h4>
+                            <p id="answers-given-count">Loading...</p>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="card shadow-lg p-3 mb-4">
+                    <div class="card-header bg-success text-white">
+                        <h5 class="mb-0">User Engagement Metrics</h5>
+                    </div>
+                    <div class="card-body">
+                        <canvas id="engagementChart"></canvas>
+                    </div>
+                </div>
+                
+                <div class="card shadow-lg p-3 mb-4">
+                    <div class="card-header bg-dark text-white">
+                        <h5 class="mb-0">Community Interactions</h5>
+                    </div>
+                    <div class="card-body">
+                        <table class="table table-bordered">
+                            <thead>
+                                <tr><th>User</th><th>Message</th><th>Date</th></tr>
+                            </thead>
+                            <tbody id="communityTable"></tbody>
+                        </table>
+                    </div>
+                </div>
+                
+            </div>
+
+
+          
+
+
+            
+<!--<table class="table table-striped table-hover">
+    <thead>
+        <tr>
+            <th>User</th>
+            <th>Action</th>
+            <th>Worksheet</th>
+            <th>Date</th>
+            <th>Source</th>
+            <th>PDF</th>
+        </tr>
+    </thead>
+    <tbody id="pdf-log-body"></tbody>
+</table>-->
+
+<!-- Modal for PDF Preview -->
+<div class="modal fade" id="pdfModal" tabindex="-1" aria-labelledby="pdfModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-lg">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h5 class="modal-title" id="pdfModalLabel">PDF Preview</h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+        </div>
+        <div class="modal-body">
+          <iframe id="pdfIframe" width="100%" height="100%" style="border: none;"></iframe>
+        </div>
+      </div>
+    </div>
+  </div>
+  
+  
+  
+  
+
+
+
+
+
+
+
+        </div>
+
+
+        <div class="content-page" id="batches" style="display:none;">
+            <div class="card shadow-lg border-0 rounded-lg p-4">
+                <div class="card-header bg-primary text-white d-flex justify-content-between align-items-center">
+                    <h2 class="mb-0">📌 Batches</h2>
+                    <button class="btn btn-light text-primary fw-bold" onclick="openBatchModal()">+ Add New Batch</button>
+                </div>
+                <div class="card-body">
+                    <div class="table-responsive">
+                        <table class="table table-striped align-middle" id="batchTable">
+                            <thead class="table-dark">
+                                <tr>
+                                    <th>Month</th>
+                                    <th>Week</th>
+                                    <th>Batch Name</th>
+                                    <th>Start Date</th>
+                                    <th>End Date</th>
+                                    <th>Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody id="batchTableBody">
+                                <!-- Batches will be dynamically inserted here -->
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        
+        <!-- Batch Modal -->
+<div id="batchModal" class="modal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Add/Edit Batch</h5>
+                <button type="button" class="btn-close" onclick="closeBatchModal()"></button>
+            </div>
+            <div class="modal-body">
+                <input type="hidden" id="batchId">
+                <label>Batch Name:</label>
+                <div class="input-container">
+                    <input type="text" id="batchName" class="form-control" required oninput="enforceBatchNameRules()">
+                    <span id="batchNameCounter" class="char-counter">0/25</span>
+                </div>
+                
+               
+                
+                <label>Week:</label>
+                <div class="input-container">
+                    <input type="text" id="batchWeek" class="form-control" required oninput="enforceWeekRules()">
+                    <span id="batchWeekCounter" class="char-counter">0/25</span>
+                </div>
+                
+
+                <label>Start Date:</label>
+<input type="date" id="batchStartDate" class="form-control" required onchange="updateMonthFromDate()">
+
+<label>End Date:</label>
+<input type="date" id="batchEndDate" class="form-control" required>
+
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" onclick="closeBatchModal()">Cancel</button>
+                <button type="button" class="btn btn-primary" onclick="saveBatch()">Save</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+        
+<script>
+    let batches = [];
+    function updateMonthFromDate() {
+    let startDate = document.getElementById("batchStartDate").value;
+    let selectedMonth = getMonthFromDate(startDate);
+    console.log("Selected Month:", selectedMonth); // Debugging purpose
+}
+
+    // Fetch batches from backend and sync with local storage
+    async function fetchBatches() {
+        try {
+            let response = await fetch("/get_batches");
+            let fetchedBatches = await response.json();
+            batches = fetchedBatches;
+
+            // Save to local storage for syncing
+            localStorage.setItem("syncBatches", JSON.stringify(batches));
+            
+            updateBatchTable();
+            syncWithCalendar();
+        } catch (error) {
+            console.error("Error fetching batches:", error);
+            showBootstrapAlert("Error", "Failed to fetch batches.");
+
+        }
+    }
+// Character limits
+const MAX_LENGTH = 25;
+
+// Update input field with "current/total" format
+function updateCounter(input, counter) {
+    input.value = input.value.substring(0, MAX_LENGTH);
+    counter.innerText = `${input.value.length}/${MAX_LENGTH}`;
+}
+
+// Restrict Batch Name (Only Letters)
+function enforceBatchNameRules() {
+    let input = document.getElementById("batchName");
+    let counter = document.getElementById("batchNameCounter");
+    input.value = input.value.replace(/[^A-Za-z\s]/g, ""); // Remove non-letters
+    updateCounter(input, counter);
+}
+
+// Restrict Month (Only Valid "Month YYYY" Format)
+function enforceMonthRules() {
+    let input = document.getElementById("batchMonth");
+    let counter = document.getElementById("batchMonthCounter");
+    input.value = input.value.replace(/[^A-Za-z\s0-9]/g, ""); // Allow only letters, numbers, and space
+    updateCounter(input, counter);
+}
+
+// Restrict Week (Only Letters & Numbers)
+function enforceWeekRules() {
+    let input = document.getElementById("batchWeek");
+    let counter = document.getElementById("batchWeekCounter");
+    input.value = input.value.replace(/[^A-Za-z0-9\s]/g, ""); // Remove special characters
+    updateCounter(input, counter);
+}
+
+// Initialize counters when modal opens
+function openBatchModal(id = "", week = "", name = "", start = "", end = "") {
+    document.getElementById("batchId").value = id;
+    document.getElementById("batchName").value = name;
+    document.getElementById("batchWeek").value = week;
+    document.getElementById("batchStartDate").value = start;
+    document.getElementById("batchEndDate").value = end;
+
+    // Initialize character counters
+    enforceBatchNameRules();
+     // Automatically update the month from the selected start date
+    updateMonthFromDate();
+    enforceWeekRules();
+
+    document.getElementById("batchModal").style.display = "block";
+}
+
+
+    function closeBatchModal() {
+        document.getElementById("batchModal").style.display = "none";
+    }
+
+  // Validation before saving the batch
+function validateBatchInputs() {
+    let batchName = document.getElementById("batchName").value.trim();
+    let batchMonth = document.getElementById("batchMonth").value.trim();
+    let batchWeek = document.getElementById("batchWeek").value.trim();
+    let startDate = document.getElementById("batchStartDate").value;
+    let endDate = document.getElementById("batchEndDate").value;
+
+    let nameRegex = /^[A-Za-z\s]{1,25}$/;
+    let monthRegex = /^(January|February|March|April|May|June|July|August|September|October|November|December) \d{4}$/;
+    let weekRegex = /^[A-Za-z0-9\s]{1,25}$/;
+
+    if (!nameRegex.test(batchName)) {
+        alert("Invalid Batch Name! Only letters allowed, max 25 characters.");
+        return false;
+    }
+
+    if (!monthRegex.test(batchMonth)) {
+        alert("Invalid Month! Enter in 'Month YYYY' format (e.g., March 2025).");
+        return false;
+    }
+
+    if (!weekRegex.test(batchWeek)) {
+        alert("Invalid Week! Only letters and numbers allowed, max 25 characters.");
+        return false;
+    }
+
+    if (!startDate || !endDate) {
+        alert("Start Date and End Date cannot be empty!");
+        return false;
+    }
+
+    if (new Date(startDate) > new Date(endDate)) {
+        alert("Start Date cannot be after End Date!");
+        return false;
+    }
+
+    return true;
+}
+
+// Function to extract "Month YYYY" from a date string
+function getMonthFromDate(dateString) {
+    if (!dateString) return "";
+    const date = new Date(dateString);
+    const monthNames = [
+        "January", "February", "March", "April", "May", "June",
+        "July", "August", "September", "October", "November", "December"
+    ];
+    return `${monthNames[date.getMonth()]} ${date.getFullYear()}`;
+}
+
+// Modify Save Batch function
+async function saveBatch() {
+    let id = document.getElementById("batchId").value;
+    let startDate = document.getElementById("batchStartDate").value;
+    let endDate = document.getElementById("batchEndDate").value;
+
+    if (!startDate || !endDate) {
+    showBootstrapAlert("Error", "Start Date and End Date cannot be empty!");
+    return false;
+}
+    if (new Date(startDate) > new Date(endDate)) {
+        showBootstrapAlert("Error", "Start Date cannot be after End Date!");
+        return false;
+    }
+
+
+
+    let batchData = {
+        name: document.getElementById("batchName").value.trim(),
+        month: getMonthFromDate(startDate), // Auto-fetch month from start date
+        week: document.getElementById("batchWeek").value.trim(),
+        start_date: startDate,
+        end_date: endDate
+    };
+
+    let url = id ? `/edit_batch/${id}` : "/add_batch";
+    let method = id ? "PUT" : "POST";
+
+    try {
+        let response = await fetch(url, {
+            method: method,
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(batchData)
+        });
+
+        let result = await response.json();
+        showBootstrapAlert("Batch Notification", result.message);
+
+
+        await fetchBatches();
+        closeBatchModal();
+    } catch (error) {
+        console.error("Error saving batch:", error);
+    }
+}
+
+    // Update batch table dynamically
+    function updateBatchTable() {
+        const tableBody = document.querySelector("#batchTable tbody");
+        tableBody.innerHTML = "";
+
+        batches.forEach((batch, index) => {
+            const row = `<tr>
+                <td>${batch.month}</td>
+                <td>${batch.week}</td>
+                <td>${batch.name}</td>
+                <td>${batch.start_date}</td>
+                <td>${batch.end_date}</td>
+                <td>
+                    <button class='btn btn-secondary btn-sm' onclick='openBatchModal("${batch.id}", "${batch.month}", "${batch.week}", "${batch.name}", "${batch.start_date}", "${batch.end_date}")'>Edit</button>
+                    <button class='btn btn-danger btn-sm' onclick='deleteBatch(${batch.id})'>Delete</button>
+                </td>
+            </tr>`;
+            tableBody.innerHTML += row;
+        });
+    }
+
+// Delete batch function
+// Delete batch function with Bootstrap confirmation modal
+async function deleteBatch(id) {
+    showConfirmationModal("Confirm Deletion", "Are you sure you want to delete this batch?", async function () {
+        try {
+            let response = await fetch(`/delete_batch/${id}`, { method: "DELETE" });
+            let result = await response.json();
+            showBootstrapAlert("Batch Deleted", result.message);
+
+            // Sync local data
+            await fetchBatches();
+        } catch (error) {
+            console.error("Error deleting batch:", error);
+            showBootstrapAlert("Error", "Failed to delete the batch.");
+        }
+    });
+}
+
+
+
+    // Sync with local storage and update calendar
+    function syncWithCalendar() {
+        localStorage.setItem("syncBatches", JSON.stringify(batches));
+        console.log("Batches synced:", batches);
+    }
+
+    // Ensure changes reflect in calendar on page load
+    document.addEventListener("DOMContentLoaded", async () => {
+        let storedBatches = localStorage.getItem("syncBatches");
+        if (storedBatches) {
+            batches = JSON.parse(storedBatches);
+            updateBatchTable();
+        }
+        await fetchBatches();
+    });
+</script>
+
+
+
+
+
+
+        <div class="content-page" id="leads" style="display:none;">
+            <h2>Leads</h2>
+        
+            
+        </div>
+        
+       
+        
+        
+
+    
+
+        <script>
+          function loadContent(sectionId, event = null) {
+    const sections = document.querySelectorAll('.content-page');
+    sections.forEach(section => {
+        section.style.display = 'none';  // Hide all sections
+    });
+
+    const activeSection = document.getElementById(sectionId);
+    if (activeSection) {
+        activeSection.style.display = 'block';  // Show the selected section
+    }
+
+    // Update active link in sidebar
+    document.querySelectorAll('.sidebar a').forEach(link => link.classList.remove('active'));
+
+    if (event && event.target && typeof event.target.closest === 'function') {
+        let clickedElement = event.target.closest('a'); // Ensure event.target refers to a link
+        if (clickedElement) {
+            clickedElement.classList.add('active');
+        }
+    }
+}
+
+
+            // Default content
+            document.addEventListener('DOMContentLoaded', () => {
+                loadContent('dashboard');  // Load 'dashboard' section by default
+            });
+
+            // Sorting functionality
+            document.querySelectorAll('.sort-btn').forEach(button => {
+                button.addEventListener('click', () => {
+                    const sortBy = button.getAttribute('data-sort');
+                    let rows = Array.from(document.querySelectorAll('tbody tr'));
+                    rows.sort((a, b) => {
+                        let cellA = a.querySelector(`td:nth-child(${button.parentElement.cellIndex + 1})`).textContent.trim();
+                        let cellB = b.querySelector(`td:nth-child(${button.parentElement.cellIndex + 1})`).textContent.trim();
+                        if (sortBy === 'name') {
+                            return cellA.localeCompare(cellB);
+                        } else if (sortBy === 'email') {
+                            return cellA.localeCompare(cellB);
+                        }
+                        return 0;
+                    });
+                    rows.forEach(row => document.querySelector('tbody').appendChild(row));
+                });
+            });
+
+            // Show/Hide logs functionality
+            document.querySelectorAll('.log-btn').forEach(button => {
+                button.addEventListener('click', () => {
+                    const logDiv = document.getElementById(`logs-${button.getAttribute('data-user')}`);
+                    logDiv.style.display = logDiv.style.display === 'none' ? 'block' : 'none';
+                });
+            });
+
+            // Toggle sidebar visibility
+            function toggleSidebar() {
+                const sidebar = document.querySelector('.sidebar');
+                const mainContent = document.querySelector('.main-content');
+                sidebar.classList.toggle('show');
+                mainContent.classList.toggle('show-sidebar');
+            }
+        </script>
+        <script>
+            let currentFilter = "all";      // ✅ Initialize filter (default: 'all')
+            let currentPage = 1;            // ✅ Initialize current page (default: 1)
+                   // ✅ Define items per page
+            
+            async function searchActivity() { 
+                let query = document.getElementById("search-input").value.trim().toLowerCase();
+                if (!query) {
+                    fetchFilteredActivityLogs(currentFilter, 1); // Reset to default if empty
+                    return;
+                }
+            
+                let url = `/get_all_activity_logs?filter=${currentFilter}&search=${query}&page=1&per_page=${itemsPerPage}`;
+            
+                try {
+                    const response = await fetch(url);
+                    const data = await response.json();
+                    updateTableWithData(data);
+                } catch (error) {
+                    console.error("Error searching activity:", error);
+                }
+            }
+            
+            async function filterActivity(type) {
+                let resourceType = "";
+                let sortType = "latest";  // Default sorting order
+            
+                if (type === "worksheets") {
+                    resourceType = "worksheet";
+                } else if (type === "flashcards") {
+                    resourceType = "flashcard";
+                } else if (type === "latest") {
+                    sortType = "latest";
+                } else if (type === "oldest") {
+                    sortType = "oldest";
+                }
+            
+                // ✅ Update currentFilter and currentPage
+                currentFilter = type;
+                currentPage = 1;
+            
+                let url = `/get_all_activity_logs?filter=${currentFilter}&resource_type=${resourceType}&type=${sortType}&page=${currentPage}&per_page=${itemsPerPage}`;
+            
+                try {
+                    const response = await fetch(url);
+                    const data = await response.json();
+                    updateTableWithData(data);
+                } catch (error) {
+                    console.error("❌ Error filtering activity:", error);
+                }
+            }
+            
+            function updateTableWithData(data) {
+                let tableBody = document.getElementById("pdf-log-body");
+                tableBody.innerHTML = ""; // Clear table
+            
+                if (!data.activities || data.activities.length === 0) {
+                    tableBody.innerHTML = `<tr><td colspan="6" class="text-center text-muted">No results found.</td></tr>`;
+                    return;
+                }
+            
+                data.activities.forEach(log => {
+                    const logRow = document.createElement("tr");
+                    logRow.innerHTML = `
+                        <td>${log.user}</td>
+                        <td>${log.action}</td>
+                        <td>${log.resource_type} - ${log.resource_name}</td>
+                        <td>${log.date}</td>
+                        <td>${log.source}</td>
+                        <td>
+                            <button class="btn btn-primary btn-sm" onclick="viewPdf('${log.pdf}')">
+                                <i class="fas fa-eye"></i> View
+                            </button>
+                            <a href="${log.pdf}" download class="btn btn-secondary btn-sm">
+                                <i class="fas fa-download"></i> Download
+                            </a>
+                        </td>
+                    `;
+                    tableBody.appendChild(logRow);
+                });
+            
+                renderPaginationControls(data.total_pages, data.current_page, currentFilter);
+            }
+            </script>
+            <script>
+              document.addEventListener("DOMContentLoaded", function () {
+                  let allUsers = [];  
+                  const rowsPerPage = 10; 
+                  let currentPage = 1;
+              
+                  let allUserActivities = [];
+                  let currentPageActivities = 1;
+                  const rowsPerPageActivities = 10;
+                  let selectedEmails = new Set();
+              
+                  async function fetchUsers() {
+                      try {
+                          const searchQuery = document.getElementById('search-users').value.trim().toLowerCase();
+                          const roleFilter = document.getElementById('filter-role').value.toLowerCase();
+              
+                          let apiUrl = `/api/users?role=${encodeURIComponent(roleFilter)}&search=${encodeURIComponent(searchQuery)}`;
+              
+                          const response = await fetch(apiUrl);
+                          const users = await response.json();
+                          allUsers = users;  
+                          displayUsers(allUsers);
+                      } catch (error) {
+                          console.error('Error fetching users:', error);
+                      }
+                  }
+              
+                  function displayUsers(users) {
+                      const userListBody = document.getElementById('user-list-body');
+                      userListBody.innerHTML = '';  
+              
+                      const start = (currentPage - 1) * rowsPerPage;
+                      const end = start + rowsPerPage;
+                      const paginatedUsers = users.slice(start, end);
+              
+                      if (paginatedUsers.length === 0) {
+                          const row = document.createElement('tr');
+                          row.innerHTML = `<td colspan="6" class="text-center">No users found</td>`;
+                          userListBody.appendChild(row);
+                      } else {
+                          paginatedUsers.forEach(user => {
+                              const row = document.createElement('tr');
+                              row.innerHTML = `
+                                  <td>${user.id}</td>
+                                  <td>${user.name}</td>
+                                  <td>${user.email}</td>
+                                  <td>${user.role}</td>
+                                  <td>
+                                      <label class="switch">
+                                          <input type="checkbox" class="status-toggle" data-user-id="${user.id}" ${user.is_active ? 'checked' : ''}>
+                                          <span class="slider round"></span>
+                                      </label>
+                                  </td>
+                                  <td>
+                                      <label class="switch">
+                                          <input type="checkbox" class="admin-toggle" data-user-id="${user.id}" ${user.is_admin ? 'checked' : ''}>
+                                          <span class="slider round"></span>
+                                      </label>
+                                  </td>
+                              `;
+                              userListBody.appendChild(row);
+                          });
+                      }
+              
+                      updatePaginationControls(users.length);
+                      attachEventListeners();
+                  }
+              
+                  function filterUsers() {
+                      const searchInput = document.getElementById('search-users').value.trim().toLowerCase();
+                      const roleSelect = document.getElementById('filter-role').value.toLowerCase();
+              
+                      const filteredUsers = allUsers.filter(user => {
+                          const matchesSearch = user.name.toLowerCase().includes(searchInput) || user.email.toLowerCase().includes(searchInput);
+                          const matchesRole = (roleSelect === 'all' || user.role.toLowerCase() === roleSelect);
+                          return matchesSearch && matchesRole;
+                      });
+              
+                      displayUsers(filteredUsers);
+                  }
+              
+                  function attachEventListeners() {
+                      document.querySelectorAll('.status-toggle').forEach(checkbox => {
+                          checkbox.addEventListener('change', function () {
+                              updateUserStatus(this.dataset.userId, this.checked);
+                          });
+                      });
+              
+                      document.querySelectorAll('.admin-toggle').forEach(checkbox => {
+                          checkbox.addEventListener('change', function () {
+                              updateUserAdmin(this.dataset.userId, this.checked);
+                          });
+                      });
+                  }
+              
+                  async function updateUserStatus(userId, isActive) {
+                      try {
+                          const response = await fetch(`/api/users/${userId}/status`, {
+                              method: 'PATCH',
+                              headers: { 'Content-Type': 'application/json' },
+                              body: JSON.stringify({ is_active: isActive }),
+                          });
+                          const result = await response.json();
+                          console.log(result.message);
+                      } catch (error) {
+                          console.error('Error updating user status:', error);
+                      }
+                  }
+              
+                  async function updateUserAdmin(userId, isAdmin) {
+                      try {
+                          const response = await fetch(`/api/users/${userId}/admin`, {
+                              method: 'PATCH',
+                              headers: { 'Content-Type': 'application/json' },
+                              body: JSON.stringify({ is_admin: isAdmin }),
+                          });
+                          const result = await response.json();
+                          console.log(result.message);
+                      } catch (error) {
+                          console.error('Error updating admin access:', error);
+                      }
+                  }
+              
+                  document.getElementById('search-users').addEventListener('input', fetchUsers);
+                  document.getElementById('filter-role').addEventListener('change', fetchUsers);
+                  window.onload = fetchUsers;
+              
+                  function updatePaginationControls(totalUsers) {
+                      const paginationControls = document.getElementById('pagination-controls1');
+                      paginationControls.innerHTML = '';
+              
+                      const totalPages = Math.ceil(totalUsers / rowsPerPage);
+                      const pagination = document.createElement('ul');
+                      pagination.className = 'pagination justify-content-center align-items-center';
+              
+                      const prevItem = document.createElement('li');
+                      prevItem.className = `page-item ${currentPage === 1 ? 'disabled' : ''}`;
+                      prevItem.innerHTML = `<button class="page-link square-btn">&laquo;</button>`;
+                      prevItem.onclick = () => {
+                          if (currentPage > 1) {
+                              currentPage--;
+                              displayUsers(allUsers);
+                          }
+                      };
+                      pagination.appendChild(prevItem);
+              
+                      const pageInfoItem = document.createElement('li');
+                      pageInfoItem.className = 'page-item d-flex align-items-center';
+                      pageInfoItem.innerHTML = `
+                          <input type="number" class="page-input" value="${currentPage}" min="1" max="${totalPages}">
+                          <span class="page-text">of</span>
+                          <div class="total-pages-box">${totalPages}</div>`;
+              
+                      const pageInput = pageInfoItem.querySelector('.page-input');
+                      pageInput.onchange = () => {
+                          const page = parseInt(pageInput.value);
+                          if (page >= 1 && page <= totalPages) {
+                              currentPage = page;
+                              displayUsers(allUsers);
+                          } else {
+                              pageInput.value = currentPage;
+                          }
+                      };
+                      pagination.appendChild(pageInfoItem);
+              
+                      const nextItem = document.createElement('li');
+                      nextItem.className = `page-item ${currentPage === totalPages ? 'disabled' : ''}`;
+                      nextItem.innerHTML = `<button class="page-link square-btn">&raquo;</button>`;
+                      nextItem.onclick = () => {
+                          if (currentPage < totalPages) {
+                              currentPage++;
+                              displayUsers(allUsers);
+                          }
+                      };
+                      pagination.appendChild(nextItem);
+              
+                      paginationControls.appendChild(pagination);
+                  }
+              
+                  
+                  function displayUserActivities() {
+                      const userActivityBody = document.getElementById('user-activity-body');
+                      userActivityBody.innerHTML = '';
+              
+                      const start = (currentPageActivities - 1) * rowsPerPageActivities;
+                      const end = start + rowsPerPageActivities;
+                      const paginatedActivities = allUserActivities.slice(start, end);
+              
+                      paginatedActivities.forEach(user => {
+                          const row = document.createElement('tr');
+                          row.innerHTML = `
+                              <td><input type="checkbox" class="email-checkbox" value="${user.email}"></td>
+                              <td><img src="${user.profile_picture}" width="40" height="40"></td>
+                              <td>${user.name}</td>
+                              <td class="user-email">${user.email}</td>
+                              <td>${user.worksheets_used}</td>
+                              <td>${user.flashcards_used}</td>
+                              <td>
+                                  <button class="btn btn-info view-logs-btn" data-user-id="${user.email}">
+                                      View Logs
+                                  </button>
+                              </td>
+                              <td>${user.subscription}</td>`;
+                          userActivityBody.appendChild(row);
+                      });
+              
+                      updateActivityPaginationControls(allUserActivities.length);
+                  }
+              
+                  function updateActivityPaginationControls(totalActivities) {
+                    const totalPages = Math.max(1, Math.ceil(totalActivities / rowsPerPageActivities));
+
+                      currentPageActivities = Math.min(currentPageActivities, totalPages);
+                      displayUserActivities();
+                  }
+              
+                  document.getElementById("select-all").addEventListener("change", function () {
+                      document.querySelectorAll(".email-checkbox").forEach(checkbox => {
+                          checkbox.checked = this.checked;
+                      });
+                  });
+              
+                  displayUserActivities();
+              });
+              </script>
+              
+                <script>
+                    const roleSelect = document.getElementById('filter-role');
+
+roleSelect.addEventListener('change', () => {
+    const selectedRole = roleSelect.value;
+    console.log(`Selected role: ${selectedRole}`);  // Debug print
+    fetchUsersByRole(selectedRole);
+});
+
+function fetchUsersByRole(role) {
+    let url = '/api/users';
+    if (role && role !== 'all') {  // Check if a specific role is selected
+        url += `?role=${encodeURIComponent(role)}`;
+    }
+    console.log(`Fetching URL: ${url}`);  // Log the URL for debugging
+    fetch(url)
+        .then(response => response.json())
+        .then(data => {
+            console.log('Fetched users:', data);  // Debug print
+            renderUserTable(data);  // Update table with filtered users
+        })
+        .catch(error => console.error('Error fetching users:', error));
+}
+
+                    
+                    function renderUserTable(users) {
+                        const userListBody = document.getElementById('user-list-body');
+                        userListBody.innerHTML = '';  // Clear existing rows
+                    
+                        users.forEach(user => {
+                            const row = document.createElement('tr');
+                            row.innerHTML = `
+                                <td>${user.id}</td>
+                                <td>${user.name}</td>
+                                <td>${user.email}</td>
+                                <td>${user.role}</td>
+                                <td>
+                                    <label class="switch">
+                                        <input type="checkbox" class="status-toggle" data-user-id="${user.id}" ${user.is_active ? 'checked' : ''}>
+                                        <span class="slider round"></span>
+                                    </label>
+                                </td>
+                                <td>
+                                    <label class="switch">
+                                        <input type="checkbox" class="admin-toggle" data-user-id="${user.id}" ${user.is_admin ? 'checked' : ''}>
+                                        <span class="slider round"></span>
+                                    </label>
+                                </td>
+                            `;
+                            userListBody.appendChild(row);
+                        });
+                    }
+                    
+                    // Fetch all users initially
+                    fetchUsersByRole('all');
+                    
+                    
+                </script>
+                <script>
+                  let allUserActivities = [];  
+                  let currentPageActivities = 1;
+                  const rowsPerPageActivities = 7; 
+                  let selectedEmails = new Set(); 
+              
+                  function updateActivityPaginationControls(totalActivities) {
+                    const paginationControls = document.getElementById('activity-pagination-controls');
+                    paginationControls.innerHTML = '';  
+                
+                    const totalPages = Math.max(1, Math.ceil(totalActivities / rowsPerPageActivities));
+                    currentPageActivities = Math.min(currentPageActivities, totalPages);
+                
+                    const pagination = document.createElement('ul');
+                    pagination.className = 'pagination justify-content-center align-items-center';
+                
+                    // Previous button
+                    const prevItem = document.createElement('li');
+                    prevItem.className = `page-item ${currentPageActivities === 1 ? 'disabled' : ''}`;
+                    prevItem.innerHTML = `<button class="page-link square-btn">&laquo;</button>`;
+                    prevItem.onclick = () => {
+                        if (currentPageActivities > 1) {
+                            currentPageActivities--;
+                            displayUserActivities();
+                        }
+                    };
+                    pagination.appendChild(prevItem);
+                
+                    // Page input & total pages
+                    const pageInfoItem = document.createElement('li');
+                    pageInfoItem.className = 'page-item d-flex align-items-center';
+                    pageInfoItem.innerHTML = `
+                        <input type="number" class="page-input" value="${currentPageActivities}" min="1" max="${totalPages}">
+                        <span class="page-text">of</span>
+                        <div class="total-pages-box">${totalPages}</div>`;
+                
+                    const pageInput = pageInfoItem.querySelector('.page-input');
+                    pageInput.onchange = () => {
+                        const page = parseInt(pageInput.value);
+                        if (page >= 1 && page <= totalPages) {
+                            currentPageActivities = page;
+                            displayUserActivities();
+                        } else {
+                            pageInput.value = currentPageActivities;
+                        }
+                    };
+                    pagination.appendChild(pageInfoItem);
+                
+                    // Next button
+                    const nextItem = document.createElement('li');
+                    nextItem.className = `page-item ${currentPageActivities === totalPages ? 'disabled' : ''}`;
+                    nextItem.innerHTML = `<button class="page-link square-btn">&raquo;</button>`;
+                    nextItem.onclick = () => {
+                        if (currentPageActivities < totalPages) {
+                            currentPageActivities++;
+                            displayUserActivities();
+                        }
+                    };
+                    pagination.appendChild(nextItem);
+                
+                    paginationControls.appendChild(pagination);
+                }
+                
+                // Fix the select-all checkbox event
+                document.getElementById("select-all").addEventListener("change", function () {
+                    document.querySelectorAll(".email-checkbox").forEach(checkbox => {
+                        checkbox.checked = this.checked;
+                    });
+                });
+                
+                // Initialize user activities
+                displayUserActivities();
+                
+              
+                  function attachLogButtonListeners() {
+                      document.querySelectorAll(".view-logs-btn").forEach(button => {
+                          button.removeEventListener("click", fetchLogs);
+                          button.addEventListener("click", fetchLogs);
+                      });
+                  }
+              
+                  function fetchLogs() {
+                      let userEmail = this.getAttribute("data-user-id");  
+              
+                      fetch(`/get_user_activity/${userEmail}`)
+                          .then(response => response.json())
+                          .then(data => {
+                              let logsList = document.getElementById("logsList");
+                              let paginationControls = document.getElementById("paginationControls");
+              
+                              logsList.innerHTML = "";
+                              paginationControls.innerHTML = "";
+              
+                              const logs = data.logs || [];
+                              const entriesPerPage = 7;
+                              let currentPage = 1;
+              
+                              function renderLogs(page) {
+                                  logsList.innerHTML = "";
+                                  let start = (page - 1) * entriesPerPage;
+                                  let end = start + entriesPerPage;
+                                  let paginatedLogs = logs.slice(start, end);
+              
+                                  if (paginatedLogs.length > 0) {
+                                      paginatedLogs.forEach(log => {
+                                          let listItem = document.createElement("li");
+                                          listItem.className = "list-group-item d-flex justify-content-between align-items-center";
+                                          listItem.innerHTML = `<strong>${log.action} (${log.resource_type})</strong> 
+                                              <span class="text-muted">${log.date}</span>`;
+                                          logsList.appendChild(listItem);
+                                      });
+                                  } else {
+                                      logsList.innerHTML = "<li class='list-group-item text-muted text-center'>No logs available</li>";
+                                  }
+                              }
+              
+                              function renderPagination() {
+                                  paginationControls.innerHTML = "";
+                                  let totalPages = Math.ceil(logs.length / entriesPerPage);
+              
+                                  if (totalPages > 1) {
+                                      for (let i = 1; i <= totalPages; i++) {
+                                          let pageItem = document.createElement("li");
+                                          pageItem.className = `page-item ${i === currentPage ? "active" : ""}`;
+                                          let pageLink = document.createElement("a");
+                                          pageLink.className = "page-link";
+                                          pageLink.href = "#";
+                                          pageLink.textContent = i;
+                                          pageLink.addEventListener("click", function (e) {
+                                              e.preventDefault();
+                                              currentPage = i;
+                                              renderLogs(currentPage);
+                                              renderPagination();
+                                          });
+                                          pageItem.appendChild(pageLink);
+                                          paginationControls.appendChild(pageItem);
+                                      }
+                                  }
+                              }
+              
+                              renderLogs(currentPage);
+                              renderPagination();
+              
+                              new bootstrap.Modal(document.getElementById("logsModal")).show();
+                          })
+                          .catch(error => console.error("❌ Error fetching logs:", error));
+                  }
+              
+                  function displayUserActivities() {
+                      const userActivityBody = document.getElementById('user-activity-body');
+                      userActivityBody.innerHTML = ''; 
+              
+                      const start = (currentPageActivities - 1) * rowsPerPageActivities;
+                      const end = start + rowsPerPageActivities;
+                      const paginatedActivities = allUserActivities.slice(start, end);
+              
+                      paginatedActivities.forEach(user => {
+                          const row = document.createElement('tr');
+                          row.innerHTML = `
+                              <td><input type="checkbox" class="email-checkbox" value="${user.email}"></td>
+                              <td><img src="${user.profile_picture}" width="40" height="40"></td>
+                              <td>${user.name}</td>
+                              <td class="user-email">${user.email}</td>
+                              <td>${user.worksheets_used}</td>
+                              <td>${user.flashcards_used}</td>
+                              <td>
+                                  <button class="btn btn-info view-logs-btn" data-user-id="${user.email}">
+                                      View Logs
+                                  </button>
+                              </td>
+                              <td>${user.subscription}</td>`;
+              
+                          userActivityBody.appendChild(row);
+                      });
+              
+                      attachLogButtonListeners(); 
+                      updateActivityPaginationControls(allUserActivities.length);
+                      restoreCheckboxStates(); 
+              
+                      document.dispatchEvent(new Event("userActivityRendered"));
+                  }
+                  // Ensure pagination controls get applied properly
+                  updateActivityPaginationControls(allUserActivities.length);
+              
+                  function restoreCheckboxStates() {
+                    const allCheckboxes = document.querySelectorAll(".email-checkbox");
+                    const selectAllCheckbox = document.getElementById("select-all");
+                
+                    allCheckboxes.forEach(checkbox => {
+                        checkbox.checked = selectedEmails.has(checkbox.value);
+                    });
+                
+                    // Ensure "Select All" checkbox updates correctly
+                    if (selectAllCheckbox) {
+                        selectAllCheckbox.checked = allCheckboxes.length > 0 && [...allCheckboxes].every(checkbox => checkbox.checked);
+                    }
+                }
+                
+                // ✅ Fix: Attach "Select All" Event Listener Properly
+                document.addEventListener("DOMContentLoaded", function () {
+                    const selectAllCheckbox = document.getElementById("select-all");
+                
+                    if (selectAllCheckbox) {
+                        selectAllCheckbox.addEventListener("change", function () {
+                            const allCheckboxes = document.querySelectorAll(".email-checkbox");
+                
+                            allCheckboxes.forEach(checkbox => {
+                                checkbox.checked = this.checked;
+                
+                                if (this.checked) {
+                                    selectedEmails.add(checkbox.value);
+                                } else {
+                                    selectedEmails.delete(checkbox.value);
+                                }
+                            });
+                        });
+                    }
+                
+                    displayUserActivities(); // ✅ Ensure user activities load after event is set
+                    
+                });
+                
+              </script>
+
+              
+
+
+
+
+
+              
+              <script>
+                document.addEventListener("DOMContentLoaded", function () {
+                    const selectAllCheckbox = document.getElementById("select-all");
+                    const selectedEmailsSpan = document.getElementById("selectedEmails");
+                    let selectedEmails = new Set(); // Store selected emails globally
+                
+                    // Ensure allUserActivities exists
+                    if (typeof allUserActivities === "undefined") {
+                        console.error("Error: allUserActivities is not defined.");
+                        return; // Exit script to prevent further errors
+                    }
+                
+                    function updateSelectedEmailsDisplay() {
+                        const selectedEmailsArray = Array.from(selectedEmails);
+                
+                        if (selectedEmailsArray.length > 2) {
+                            selectedEmailsSpan.innerText = `${selectedEmailsArray[0]}, ${selectedEmailsArray[1]} and ${selectedEmailsArray.length - 2} more`;
+                        } else if (selectedEmailsArray.length === 2) {
+                            selectedEmailsSpan.innerText = `${selectedEmailsArray[0]}, ${selectedEmailsArray[1]}`;
+                        } else if (selectedEmailsArray.length === 1) {
+                            selectedEmailsSpan.innerText = selectedEmailsArray[0];
+                        } else {
+                            selectedEmailsSpan.innerText = "No recipients selected.";
+                        }
+                    }
+                
+                    function updateSelectAllCheckbox() {
+                        const allCheckboxes = document.querySelectorAll(".email-checkbox");
+                        const checkedCheckboxes = [...allCheckboxes].filter(checkbox => checkbox.checked);
+                
+                        // Update "Select All" checkbox state
+                        selectAllCheckbox.checked = allCheckboxes.length > 0 && checkedCheckboxes.length === allCheckboxes.length;
+                        selectAllCheckbox.indeterminate = checkedCheckboxes.length > 0 && checkedCheckboxes.length < allCheckboxes.length;
+                    }
+                
+                    function updateCheckboxStates() {
+                        const allCheckboxes = document.querySelectorAll(".email-checkbox");
+                        allCheckboxes.forEach(checkbox => {
+                            checkbox.checked = selectedEmails.has(checkbox.value);
+                        });
+                
+                        updateSelectAllCheckbox(); // Update the "Select All" checkbox accordingly
+                    }
+                
+                    function updateSelection() {
+                        document.querySelectorAll(".email-checkbox").forEach(checkbox => {
+                            if (checkbox.checked) {
+                                selectedEmails.add(checkbox.value);
+                            } else {
+                                selectedEmails.delete(checkbox.value);
+                            }
+                        });
+                
+                        updateSelectedEmailsDisplay();
+                        updateCheckboxStates();
+                    }
+                
+                    // ✅ Fix: "Select All" functionality (works across **all** pages)
+                    selectAllCheckbox.addEventListener("change", function () {
+                        const allCheckboxes = document.querySelectorAll(".email-checkbox");
+                        allCheckboxes.forEach(checkbox => {
+                            checkbox.checked = selectAllCheckbox.checked;
+                            if (checkbox.checked) {
+                                selectedEmails.add(checkbox.value);
+                            } else {
+                                selectedEmails.delete(checkbox.value);
+                            }
+                        });
+                
+                        updateSelectedEmailsDisplay();
+                    });
+                
+                    // ✅ Fix: Individual checkbox updates
+                    document.addEventListener("change", function (event) {
+                        if (event.target.classList.contains("email-checkbox")) {
+                            updateSelection();
+                        }
+                    });
+                
+                    // ✅ Fix: Ensure checkboxes persist after pagination
+                    document.addEventListener("userActivityRendered", function () {
+                        updateCheckboxStates(); // Reapply checkbox states after rendering a new page
+                    });
+                
+                    // ✅ Fix: Ensure email selection updates when modal opens
+                    const bulkEmailModal = document.getElementById("bulkEmailModal");
+                    if (bulkEmailModal) {
+                        bulkEmailModal.addEventListener("shown.bs.modal", updateSelectedEmailsDisplay);
+                    }
+                });
+                </script>
+                
+
+
+
+
+            <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+            <script>
+                let activityChartInstance = null; // Store chart instance globally
+                let engagementChartInstance = null; // Ensure the variable is globally defined
+                
+                async function loadActivityReport() {
+                    let data = await fetch("/admin_get_activity_data").then(res => res.json());
+                    let dates = data.map(d => d.date);
+                    let worksheetsData = data.map(d => d.worksheets);
+                    let flashcardsData = data.map(d => d.flashcards);
+                
+                    let ctx = document.getElementById("activityChart").getContext("2d");
+                    if (activityChartInstance) {
+                        activityChartInstance.destroy();
+                    }
+                
+                    activityChartInstance = new Chart(ctx, {
+                        type: "line",
+                        data: {
+                            labels: dates,
+                            datasets: [
+                                { label: "Worksheets Downloaded", data: worksheetsData, borderColor: "blue" },
+                                { label: "Flashcards Downloaded", data: flashcardsData, borderColor: "green" }
+                            ]
+                        },
+                        options: {
+                            responsive: true,
+                            maintainAspectRatio: window.innerWidth > 768
+                        }
+                    });
+                
+                    let activityTable = document.getElementById("recentActivityTable");
+                   
+                }
+                
+                function resizeCharts() {
+                    if (activityChartInstance) {
+                        activityChartInstance.options.maintainAspectRatio = window.innerWidth > 768;
+                        activityChartInstance.resize();
+                    }
+                    if (engagementChartInstance) {
+                        engagementChartInstance.options.maintainAspectRatio = window.innerWidth > 768;
+                        engagementChartInstance.resize();
+                    }
+                }
+                
+                async function loadEngagementReport() {
+    try {
+        // === Fetch latest engagement data for the chart ===
+        let data = await fetch("/admin_get_engagement_data").then(res => res.json());
+        let ctx = document.getElementById("engagementChart").getContext("2d");
+
+        // Destroy old chart instance if it exists to prevent duplication
+        if (window.engagementChartInstance) {
+            window.engagementChartInstance.destroy();
+        }
+
+        // Create new chart instance with updated data
+        window.engagementChartInstance = new Chart(ctx, {
+            type: "bar",
+            data: {
+                labels: ["Forum Posts", "Questions Asked", "Answers Given"],
+                datasets: [{
+                    label: "User Engagement",
+                    data: [data.forum_posts, data.questions_asked, data.answers_given],
+                    backgroundColor: ["#ff6384", "#36a2eb", "#4bc0c0"],
+                    borderWidth: 1
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: window.innerWidth > 768,
+                scales: {
+                    y: {
+                        beginAtZero: true,
+                        ticks: {
+                            precision: 0
+                        }
+                    }
+                }
+            }
+        });
+
+        // === Fetch latest community interaction data for the table ===
+        let communityTable = document.getElementById("communityTable");
+        let communityData = await fetch("/admin_get_community_interactions").then(res => res.json());
+
+        // Clear existing table rows to avoid duplication
+        communityTable.innerHTML = "";
+
+        // Populate table with updated data
+        communityData.forEach(row => {
+            let tr = document.createElement("tr");
+            tr.innerHTML = `
+                <td>${row.user}</td>
+                <td>${row.message}</td>
+                <td>${new Date(row.date).toLocaleString()}</td>
+            `;
+            communityTable.appendChild(tr);
+        });
+
+    } catch (error) {
+        console.error("Failed to load engagement report:", error);
+    }
+}
+
+// Keep both chart and table updated every 10 seconds
+setInterval(loadEngagementReport, 10000);
+                window.addEventListener("resize", resizeCharts);
+                </script>
+                
+                
+                        
+
+                        <script>
+                            function showActivityReport() {
+                                document.getElementById("activity-report").style.display = "block";
+                                document.getElementById("engagement-report").style.display = "none";
+                                loadActivityReport();
+                            }
+                            
+                            function showEngagementReport() {
+                                document.getElementById("activity-report").style.display = "none";
+                                document.getElementById("engagement-report").style.display = "block";
+                                loadEngagementReport();
+                            }
+                            
+                            document.addEventListener("DOMContentLoaded", showActivityReport);
+                            </script>
+        
+    </div>
+
+
+
+    <script>
+        document.addEventListener("DOMContentLoaded", function () {
+            fetch("/admin_get_forum_stats")
+                .then(response => response.json())
+                .then(data => {
+                    document.getElementById("forum-posts-count").textContent = data.total_forum_posts;
+                    document.getElementById("questions-asked-count").textContent = data.total_questions;
+                    document.getElementById("answers-given-count").textContent = data.total_answers;
+                })
+                .catch(error => console.error("Error fetching forum stats:", error));
+        });
+        </script>
+
+
+<!-- Bootstrap Alert Modal -->
+<div id="alertModal" class="modal fade" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="alertModalLabel">Notification</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body" id="alertModalBody">
+                <!-- Alert message will be inserted here -->
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-primary" data-bs-dismiss="modal">OK</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Bootstrap Confirmation Modal -->
+<div id="confirmModal" class="modal fade" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header bg-danger text-white">
+                <h5 class="modal-title" id="confirmModalLabel">Confirm Action</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body" id="confirmModalBody">
+                <!-- Confirmation message will be inserted here -->
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                <button type="button" class="btn btn-danger" id="confirmModalBtn">Delete</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+
+<script>// Function to Show Bootstrap Alert Modal
+function showBootstrapAlert(title, message) {
+    document.getElementById("alertModalLabel").innerText = title;
+    document.getElementById("alertModalBody").innerText = message;
+    let alertModal = new bootstrap.Modal(document.getElementById("alertModal"));
+    alertModal.show();
+}
+
+// Function to Show Bootstrap Confirmation Modal
+function showConfirmationModal(title, message, callback) {
+    document.getElementById("confirmModalLabel").innerText = title;
+    document.getElementById("confirmModalBody").innerText = message;
+    
+    let confirmModal = new bootstrap.Modal(document.getElementById("confirmModal"));
+    document.getElementById("confirmModalBtn").onclick = function () {
+        confirmModal.hide();
+        callback();
+    };
+    
+    confirmModal.show();
+}
+
+</script>
+
+</body>
+</html>
